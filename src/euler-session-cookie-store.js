@@ -124,13 +124,16 @@ class EulerSessionCookieStore {
     return true;
   }
 
-  async save() {
-    const cookies = await this.session.cookies.get({ domain: PROJECT_EULER_DOMAIN, session: true });
-    const sessionCookies = (cookies || [])
-      .filter((cookie) => cookie?.session !== false && isProjectEulerCookie(cookie))
-      .map(snapshotCookie);
-
+  save() {
+    // Serialize the read as well as the write. If a login-cookie read is slow
+    // while a later logout event is fast, allowing the reads to race could let
+    // the stale login snapshot write last and resurrect authentication.
     this._writeChain = this._writeChain.then(async () => {
+      const cookies = await this.session.cookies.get({ domain: PROJECT_EULER_DOMAIN, session: true });
+      const sessionCookies = (cookies || [])
+        .filter((cookie) => cookie?.session !== false && isProjectEulerCookie(cookie))
+        .map(snapshotCookie);
+
       if (!sessionCookies.length) {
         // This is important for explicit logout: removing the live auth cookie
         // also removes the encrypted snapshot instead of reviving an old login.
