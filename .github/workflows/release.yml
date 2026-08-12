@@ -68,7 +68,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install desktop dependencies
-        run: npm install
+        run: npm ci
       - name: Unit tests
         run: npm test
       - name: Prepare self-contained Python runtime

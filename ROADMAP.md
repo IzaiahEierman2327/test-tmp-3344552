@@ -135,14 +135,10 @@ v0.4 keeps the v0.3 Electron + JupyterLab architecture and concentrates first on
 - Securely persist Project Euler **session cookies** across application restarts using Electron `safeStorage`, restoring them before the first left-pane navigation.
 - Preserve normal Chromium ownership of persistent cookies and DOM storage instead of duplicating them.
 - Ensure explicit Project Euler logout removes the encrypted session snapshot and cannot be undone by a stale asynchronous cookie write.
+- Add a committed npm lockfile for the Electron/build toolchain.
+- Use `npm ci` in CI and release builds so JavaScript build dependencies resolve from that lockfile.
 
 ### Planned for v0.4
-
-#### JavaScript build repeatability
-
-- Add and maintain an npm lockfile for Electron/build tooling.
-- Change CI/release dependency installation to `npm ci` after the lockfile exists.
-- Keep this separate from Python dependency policy.
 
 #### CI and release discipline
 
@@ -161,7 +157,7 @@ Further v0.4 product work will build on the existing `WorkbenchService` / `Jupyt
 - separation between Project Euler content, Jupyter content, and privileged Electron APIs;
 - no automatic answer submission to Project Euler.
 
-No additional v0.4 product feature is treated as committed until it is added to a milestone or accepted development PR.
+No additional v0.4 product feature is treated as committed until it is added to a milestone or accepted development PR. v0.4.0 may proceed to release once the defined hardening/build milestones and release-candidate verification gates are complete.
 
 Detailed v0.4 requirements: [`docs/V0.4_MILESTONES.md`](docs/V0.4_MILESTONES.md).
 
