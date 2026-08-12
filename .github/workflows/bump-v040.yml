@@ -1,0 +1,36 @@
+name: Bump v0.4 package metadata
+
+on:
+  push:
+    branches:
+      - agent/v0.4-release-prep
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/v0.4-release-prep
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Update package and lockfile versions
+        run: npm version 0.4.0 --no-git-tag-version
+      - name: Commit version metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$(git status --porcelain -- package.json package-lock.json)" ]]; then
+            echo "Version metadata is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "Bump package version to 0.4.0"
+          git push origin HEAD:agent/v0.4-release-prep
