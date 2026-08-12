@@ -146,6 +146,36 @@ test('logging out removes the encrypted session snapshot instead of reviving sta
   assert.equal(current.state.storageFlushCount, 1);
 });
 
+test('a later logout snapshot wins even when an earlier authenticated cookie read is slow', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'euler-session-race-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const filePath = path.join(root, 'euler-session-cookies.json');
+  const current = fakeSession([eulerCookie()]);
+  let reads = 0;
+  current.cookies.get = async () => {
+    reads += 1;
+    if (reads === 1) {
+      const authenticated = [eulerCookie()];
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return authenticated;
+    }
+    return [];
+  };
+  const store = new EulerSessionCookieStore({
+    session: current,
+    safeStorage: fakeSafeStorage(),
+    filePath,
+  });
+
+  const authenticatedSave = store.save();
+  current.state.cookies = [];
+  const logoutSave = store.save();
+  await Promise.all([authenticatedSave, logoutSave]);
+
+  assert.equal(reads, 2);
+  await assert.rejects(() => fs.access(filePath), { code: 'ENOENT' });
+});
+
 test('secure-storage unavailability never falls back to plaintext cookie storage', async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'euler-session-no-crypto-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
