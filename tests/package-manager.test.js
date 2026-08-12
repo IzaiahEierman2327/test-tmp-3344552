@@ -8,6 +8,7 @@ const path = require('node:path');
 const {
   canonicalPackageName,
   removeManagedDistribution,
+  runProcess,
   validatePackageName,
   validatePackageSpec,
 } = require('../src/package-manager');
@@ -21,6 +22,15 @@ test('package specifications reject control characters and pip options while pac
   assert.equal(validatePackageName('my-package_2'), 'my-package_2');
   assert.throws(() => validatePackageName('../base-runtime'), /Invalid package name/);
   assert.equal(canonicalPackageName('My_Package.Name'), 'my-package-name');
+});
+
+test('managed subprocesses are terminated after the configured timeout', async () => {
+  const started = Date.now();
+  await assert.rejects(
+    () => runProcess(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { timeoutMs: 100 }),
+    /Process timed out after 100 ms/
+  );
+  assert.ok(Date.now() - started < 2_000, 'stalled process should be terminated promptly');
 });
 
 test('managed uninstall deletes only files described by a distribution inside packagesRoot', async (t) => {
