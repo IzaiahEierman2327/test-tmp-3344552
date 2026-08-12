@@ -4,10 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag (must match package.json version, e.g. v0.3.0)
+        description: Release tag (must match package.json version, e.g. v0.4.0)
         required: true
-        default: v0.3.0
+        default: v0.4.0
   push:
+    branches:
+      - main
+      - 'release/**'
     tags:
       - 'v*'
 
@@ -21,6 +24,8 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
+      publish: ${{ steps.meta.outputs.publish }}
+      skip: ${{ steps.meta.outputs.skip }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -35,6 +40,9 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
           EXPECTED_TAG="v${VERSION}"
+          TAG="${EXPECTED_TAG}"
+          PUBLISH=false
+          SKIP=false
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
@@ -42,8 +50,28 @@ jobs:
               exit 1
             fi
             TAG="${REQUESTED_TAG}"
-          else
+            PUBLISH=true
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
+            PUBLISH=true
+          elif [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            TAG="${EXPECTED_TAG}"
+            if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+              echo "Release tag ${TAG} already exists; skipping duplicate main-branch release."
+              SKIP=true
+            else
+              PUBLISH=true
+            fi
+          elif [[ "${GITHUB_REF}" == refs/heads/release/* ]]; then
+            BRANCH_TAG="${GITHUB_REF_NAME#release/}"
+            if [[ "${BRANCH_TAG}" != "${EXPECTED_TAG}" ]]; then
+              echo "Release branch ${GITHUB_REF_NAME} does not match package version ${VERSION}; expected release/${EXPECTED_TAG}." >&2
+              exit 1
+            fi
+            TAG="${EXPECTED_TAG}"
+          else
+            echo "Unsupported release trigger: ${GITHUB_REF}." >&2
+            exit 1
           fi
 
           if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
@@ -53,9 +81,12 @@ jobs:
 
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "publish=${PUBLISH}" >> "${GITHUB_OUTPUT}"
+          echo "skip=${SKIP}" >> "${GITHUB_OUTPUT}"
 
   build:
     needs: metadata
+    if: needs.metadata.outputs.skip != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -68,7 +99,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install desktop dependencies
-        run: npm install
+        run: npm ci
       - name: Unit tests
         run: npm test
       - name: Prepare self-contained Python runtime
@@ -102,6 +133,7 @@ jobs:
       contents: write
       actions: read
     steps:
+      - uses: actions/checkout@v7
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -136,6 +168,7 @@ jobs:
           printf 'Release asset: %s\n' "${files[@]}"
 
       - name: Create or update GitHub Release
+        if: needs.metadata.outputs.publish == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -154,5 +187,5 @@ jobs:
               --repo "${GITHUB_REPOSITORY}" \
               --target "${GITHUB_SHA}" \
               --title "${RELEASE_TAG}" \
-              --generate-notes
+              --notes-file docs/V0.4_RELEASE_NOTES.md
           fi
