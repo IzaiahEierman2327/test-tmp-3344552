@@ -6,16 +6,31 @@ A self-contained desktop Project Euler workspace with the Project Euler website 
 
 ## Project roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for the release history from v0.1.0 through the current v0.4 development line, plus future work that has been explicitly agreed.
+See [`ROADMAP.md`](ROADMAP.md) for the release history from v0.1.0 through v0.4.0, plus future work that has been explicitly agreed.
 
-## v0.3.0 distributions
+## v0.4.0 distributions
 
-- Windows x64 installer: `euler-workbench-0.3.0-win-x64-setup.exe`
-- Windows x64 portable: `euler-workbench-0.3.0-win-x64.zip`
-- Linux x64 portable: `euler-workbench-0.3.0-linux-x64.tar.gz`
+- Windows x64 installer: `euler-workbench-0.4.0-win-x64-setup.exe`
+- Windows x64 portable: `euler-workbench-0.4.0-win-x64.zip`
+- Linux x64 portable: `euler-workbench-0.4.0-linux-x64.tar.gz`
 - macOS is not built.
 
 Every distribution includes its own Python, JupyterLab, IPython kernel and scientific packages. The target machine does not need Python, Conda, Jupyter or Node.js installed.
+
+See [`docs/V0.4_RELEASE_NOTES.md`](docs/V0.4_RELEASE_NOTES.md) for the complete v0.4.0 release notes.
+
+## v0.4.0 hardening
+
+v0.4.0 keeps the v0.3 workflow while strengthening security, recovery and build discipline:
+
+- Project Euler session cookies are encrypted with Electron `safeStorage` and restored before the first left-pane navigation, so login state can survive application restarts even when the site uses session cookies.
+- Explicit Project Euler logout removes the encrypted session snapshot and is protected against stale asynchronous cookie writes.
+- Managed package specifications reject pip option injection; `pip list` and `pip install` operations have bounded lifetimes.
+- Privileged local BrowserWindows cannot navigate to remote content while retaining Workbench preload capabilities, and `tools:*` IPC is restricted to the active Tools window.
+- OpenAI-compatible requests have a bounded timeout.
+- The Electron/build toolchain is locked with `package-lock.json`; CI and release builds use `npm ci`.
+
+The Python runtime policy is intentionally different from the JavaScript lockfile policy: v0.4.x remains on CPython 3.13 and prefers the latest stable supported 3.13 patch plus the highest stable compatible Python libraries.
 
 ## Upgrading without losing work
 
@@ -130,9 +145,11 @@ Statistics are derived from local data and include started/solved/in-progress pr
 
 The Packages UI uses the **bundled Python**, not system Python. Installs/upgrades use a persistent Workbench user layer (`python-packages/`) rather than modifying `resources/runtime/python`:
 
-- install/upgrade: bundled `python -m pip install --target <python-packages>`;
+- install/upgrade: bundled `python -m pip install --target <python-packages> -- <requirement>`;
 - list: bundled `python -m pip list --path <python-packages>`;
 - uninstall: Workbench deletes only files listed by a matching distribution inside that managed directory and refuses paths outside it.
+
+User-supplied package specifications that begin with `-` are rejected so they cannot be interpreted as additional pip command-line options. Package list/install subprocesses also have timeouts so a stalled package index or child process cannot leave the Tools workflow pending forever.
 
 Jupyter Server itself never receives the managed package directory on `PYTHONPATH`; only the **Euler Python kernel** does. This prevents a user-installed package from shadowing JupyterLab's own bundled dependencies. Restart the kernel after package changes when a module was already imported.
 
@@ -157,7 +174,7 @@ articles/a001/
 └── article.json
 ```
 
-The generation prompt requires the model to stay grounded in supplied user material and identify missing reasoning instead of inventing algorithms, measurements or results.
+The generation prompt requires the model to stay grounded in supplied user material and identify missing reasoning instead of inventing algorithms, measurements or results. AI requests have a bounded timeout if the configured endpoint stops responding.
 
 ## Runtime isolation
 
@@ -177,7 +194,7 @@ The bundled base environment includes JupyterLab/IPython, NumPy, SymPy, SciPy, m
 ## Development and tests
 
 ```bash
-npm install
+npm ci
 npm run prepare:runtime
 npm run verify:runtime
 npm test
@@ -193,6 +210,6 @@ npm run verify:package
 npm run verify:portable
 ```
 
-CI covers workspace migration/preservation, solution snapshots, user snippets, search/statistics, mock OpenAI-compatible calls, API-key-at-rest behavior, managed-package path safety, installer/portable upgrade guards and a real Jupyter/IPython smoke test for the tokenized `submit()` bridge.
+CI covers workspace migration/preservation, solution snapshots, user snippets, search/statistics, mock OpenAI-compatible calls, API-key-at-rest behavior, Project Euler session-cookie persistence/logout behavior, managed-package path safety/timeouts, installer/portable upgrade guards and a real Jupyter/IPython smoke test for the tokenized `submit()` bridge.
 
-See `docs/V0.3_MILESTONES.md` and `docs/ARCHITECTURE.md` for implementation details.
+See [`docs/V0.4_MILESTONES.md`](docs/V0.4_MILESTONES.md), [`docs/V0.4_RELEASE_NOTES.md`](docs/V0.4_RELEASE_NOTES.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for implementation and release details.
