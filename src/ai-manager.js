@@ -3,6 +3,8 @@
 const path = require('node:path');
 const { readJson, writeJsonAtomic } = require('./workspace');
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
 function normalizeEndpoint(value) {
   const text = String(value || '').trim();
   if (!text) throw new TypeError('AI completion endpoint is required');
@@ -16,6 +18,12 @@ function normalizeTemperature(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0.2;
   return Math.min(2, Math.max(0, number));
+}
+
+function normalizeRequestTimeoutMs(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return DEFAULT_REQUEST_TIMEOUT_MS;
+  return Math.min(10 * 60_000, Math.max(50, Math.round(number)));
 }
 
 function parseCompletionText(payload) {
@@ -32,10 +40,11 @@ function parseCompletionText(payload) {
 }
 
 class AIManager {
-  constructor({ settingsRoot, safeStorage = null }) {
+  constructor({ settingsRoot, safeStorage = null, requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS }) {
     this.settingsFile = path.join(settingsRoot, 'ai.json');
     this.safeStorage = safeStorage;
     this.sessionApiKey = '';
+    this.requestTimeoutMs = normalizeRequestTimeoutMs(requestTimeoutMs);
   }
 
   async _encrypt(text) {
@@ -125,18 +134,33 @@ class AIManager {
     const config = await this._resolvedConfig({ apiKey, endpoint, model, temperature });
     const headers = { 'Content-Type': 'application/json' };
     if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
-    const response = await fetch(config.endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: String(system || '') },
-          { role: 'user', content: String(user || '') },
-        ],
-        temperature: config.temperature,
-      }),
-    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+    let response;
+    try {
+      response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers,
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            { role: 'system', content: String(system || '') },
+            { role: 'user', content: String(user || '') },
+          ],
+          temperature: config.temperature,
+        }),
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error(`AI endpoint timed out after ${this.requestTimeoutMs} ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+
     const text = await response.text();
     let payload;
     try { payload = JSON.parse(text); } catch { payload = null; }
@@ -177,4 +201,11 @@ class AIManager {
   }
 }
 
-module.exports = { AIManager, normalizeEndpoint, normalizeTemperature, parseCompletionText };
+module.exports = {
+  AIManager,
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  normalizeEndpoint,
+  normalizeRequestTimeoutMs,
+  normalizeTemperature,
+  parseCompletionText,
+};
