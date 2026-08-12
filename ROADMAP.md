@@ -6,7 +6,7 @@ For detailed implementation requirements, see the version-specific milestone doc
 
 ## Status legend
 
-- **Released** — published as a tagged upstream release.
+- **Released** — published as a tagged release.
 - **Completed on `develop`** — implemented and merged into the current integration branch, but not yet part of a new stable release.
 - **Planned** — explicitly included in an existing development milestone.
 - **Unscheduled** — a known direction or compatibility rule without a committed release version.
@@ -15,7 +15,7 @@ For detailed implementation requirements, see the version-specific milestone doc
 
 This repository continues the original Project Euler Workbench developed in `AuroraLilja8514/test-tmp-3344552`.
 
-The current fork does not contain the historical release tags, so the v0.1–v0.3 entries below are reconstructed from the original upstream tags, release notes, and versioned README files. Current v0.4 work is tracked in this fork on `develop`.
+The v0.1–v0.3 entries below are reconstructed from the original upstream tags, release notes, and versioned README files. v0.4.0 was developed and released from this fork.
 
 ---
 
@@ -34,7 +34,7 @@ The first release established the architecture that still defines the product:
 - CI, packaged-runtime verification, and GitHub Release publishing were established for verified desktop builds.
 - Initial release artifacts covered Windows, macOS, and Linux formats.
 
-The original design intended the persistent Electron partition to preserve Project Euler login state between launches. A later-discovered limitation with true session cookies meant that this did not work reliably; the missing behavior is addressed on the v0.4 development line.
+The original design intended the persistent Electron partition to preserve Project Euler login state between launches. A later-discovered limitation with true session cookies meant that this did not work reliably; the missing behavior was addressed in v0.4.0.
 
 ---
 
@@ -57,7 +57,7 @@ This version established the core rule that replaceable program/runtime files an
 
 **Status:** Released — 2026-08-11
 
-v0.2.1 finalized the distribution model later retained by v0.3:
+v0.2.1 finalized the distribution model later retained by v0.3 and v0.4:
 
 - Windows x64 NSIS installer.
 - Windows x64 portable ZIP.
@@ -118,13 +118,13 @@ Detailed v0.3 requirements: [`docs/V0.3_MILESTONES.md`](docs/V0.3_MILESTONES.md)
 
 ---
 
-## v0.4.0 — Hardening, recovery, and continued development
+## v0.4.0 — Hardening, recovery, and build discipline
 
-**Status:** In development on `develop`
+**Status:** Released — 2026-08-12
 
-v0.4 keeps the v0.3 Electron + JupyterLab architecture and concentrates first on security boundaries, failure recovery, and maintainability before further product expansion.
+v0.4 kept the v0.3 Electron + JupyterLab architecture and concentrated on security boundaries, failure recovery, login persistence, and maintainability.
 
-### Completed on `develop`
+### Security and recovery
 
 - Reject pip option-style package specifications and terminate pip option parsing before user requirements.
 - Prevent privileged local BrowserWindows from navigating to remote content while retaining Workbench preload privileges.
@@ -135,31 +135,28 @@ v0.4 keeps the v0.3 Electron + JupyterLab architecture and concentrates first on
 - Securely persist Project Euler **session cookies** across application restarts using Electron `safeStorage`, restoring them before the first left-pane navigation.
 - Preserve normal Chromium ownership of persistent cookies and DOM storage instead of duplicating them.
 - Ensure explicit Project Euler logout removes the encrypted session snapshot and cannot be undone by a stale asynchronous cookie write.
+
+### Build repeatability and release discipline
+
 - Add a committed npm lockfile for the Electron/build toolchain.
 - Use `npm ci` in CI and release builds so JavaScript build dependencies resolve from that lockfile.
-
-### Planned for v0.4
-
-#### CI and release discipline
-
 - Keep `develop` as the integration branch and `main` as the stable/release branch.
-- Require unit and real Jupyter smoke CI before development PRs enter `develop`.
-- Before v0.4.0 release, run packaged-runtime, portable-layout, and final release-asset verification on the release candidate.
-- Retain the existing Windows x64 installer + portable ZIP and Linux x64 portable `tar.gz` unless a future explicit milestone changes the matrix.
+- Gate development/release PRs on unit and real Jupyter smoke CI.
+- Validate Windows and Linux packaged runtimes and release layout on a release candidate before promotion to `main`.
+- Rebuild and re-run the same platform gates from the final `main` commit before publishing.
+- Publish exactly the Windows x64 installer, Windows x64 portable ZIP and Linux x64 portable `tar.gz`.
 
-#### Product development
+The v0.4.0 GitHub Release targets `main` commit `a5e5e65349a7ee37969a4d0f3a6082f5e3081ce4`. Detailed v0.4 requirements and release validation are recorded in [`docs/V0.4_MILESTONES.md`](docs/V0.4_MILESTONES.md), with user-facing notes in [`docs/V0.4_RELEASE_NOTES.md`](docs/V0.4_RELEASE_NOTES.md).
 
-Further v0.4 product work will build on the existing `WorkbenchService` / `JupyterManager` boundaries. New features must preserve:
+### Product-development principles retained
+
+v0.4.0 did not add an additional standalone feature set beyond the hardening, recovery and login-persistence work above. Future product work should continue to preserve:
 
 - explicit user control over saved solutions, snippets, and AI source selection;
 - local-first workspace storage;
 - save-before-navigation/exit guarantees;
 - separation between Project Euler content, Jupyter content, and privileged Electron APIs;
 - no automatic answer submission to Project Euler.
-
-No additional v0.4 product feature is treated as committed until it is added to a milestone or accepted development PR. v0.4.0 may proceed to release once the defined hardening/build milestones and release-candidate verification gates are complete.
-
-Detailed v0.4 requirements: [`docs/V0.4_MILESTONES.md`](docs/V0.4_MILESTONES.md).
 
 ---
 
