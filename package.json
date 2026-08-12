@@ -1,6 +1,6 @@
 {
   "name": "project-euler-workbench",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "A self-contained Project Euler browser + JupyterLab desktop workbench.",
   "main": "src/main.js",
