@@ -9,6 +9,9 @@ function validatePackageSpec(value) {
   if (!spec || spec.length > 512 || /[\r\n\0]/.test(spec)) {
     throw new TypeError('Package specification must be a single non-empty line');
   }
+  if (spec.startsWith('-')) {
+    throw new TypeError('Package specification must not be a pip option');
+  }
   return spec;
 }
 
@@ -164,7 +167,7 @@ class ManagedPackageManager {
     await this.ensureRoot();
     const result = await runProcess(this.pythonExecutable, [
       '-m', 'pip', 'install', '--upgrade', '--no-warn-script-location',
-      '--target', this.packagesRoot, spec,
+      '--target', this.packagesRoot, '--', spec,
     ], { env: this.environment() });
     return { specification: spec, output: (result.stdout + result.stderr).trim(), packages: await this.list() };
   }
