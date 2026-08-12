@@ -6,16 +6,29 @@ A self-contained desktop Project Euler workspace with the Project Euler website 
 
 ## Project roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for the release history from v0.1.0 through the current v0.4 development line, plus future work that has been explicitly agreed.
+See [`ROADMAP.md`](ROADMAP.md) for the release history from v0.1.0 through v0.4.0, plus future work that has been explicitly agreed.
 
-## v0.3.0 distributions
+## v0.4.0 distributions
 
-- Windows x64 installer: `euler-workbench-0.3.0-win-x64-setup.exe`
-- Windows x64 portable: `euler-workbench-0.3.0-win-x64.zip`
-- Linux x64 portable: `euler-workbench-0.3.0-linux-x64.tar.gz`
+- Windows x64 installer: `euler-workbench-0.4.0-win-x64-setup.exe`
+- Windows x64 portable: `euler-workbench-0.4.0-win-x64.zip`
+- Linux x64 portable: `euler-workbench-0.4.0-linux-x64.tar.gz`
 - macOS is not built.
 
 Every distribution includes its own Python, JupyterLab, IPython kernel and scientific packages. The target machine does not need Python, Conda, Jupyter or Node.js installed.
+
+## v0.4.0 highlights
+
+v0.4.0 keeps the v0.3 workflow and focuses on hardening and reliability:
+
+- Project Euler session-cookie login state is encrypted with Electron `safeStorage` and restored before the first left-pane navigation; explicit logout remains authoritative.
+- Privileged local BrowserWindows cannot retain Workbench preload privileges after remote navigation, `tools:*` IPC is sender-validated, and the Tools renderer has a restrictive Content Security Policy.
+- OpenAI-compatible AI requests and managed pip operations have bounded failure time instead of hanging indefinitely.
+- Managed package specifications are hardened against pip option interpretation and user packages remain confined to the persistent Workbench package layer.
+- The JavaScript/Electron build toolchain now has a committed npm lockfile and CI/release builds use `npm ci`.
+- The Python policy remains CPython 3.13 with the latest stable supported 3.13 patch and highest stable compatible Python libraries.
+
+See [`docs/V0.4_RELEASE_NOTES.md`](docs/V0.4_RELEASE_NOTES.md) for the release summary.
 
 ## Upgrading without losing work
 
@@ -177,7 +190,7 @@ The bundled base environment includes JupyterLab/IPython, NumPy, SymPy, SciPy, m
 ## Development and tests
 
 ```bash
-npm install
+npm ci
 npm run prepare:runtime
 npm run verify:runtime
 npm test
@@ -195,4 +208,4 @@ npm run verify:portable
 
 CI covers workspace migration/preservation, solution snapshots, user snippets, search/statistics, mock OpenAI-compatible calls, API-key-at-rest behavior, managed-package path safety, installer/portable upgrade guards and a real Jupyter/IPython smoke test for the tokenized `submit()` bridge.
 
-See `docs/V0.3_MILESTONES.md` and `docs/ARCHITECTURE.md` for implementation details.
+See `docs/V0.4_MILESTONES.md`, `ROADMAP.md` and `docs/ARCHITECTURE.md` for implementation details.
