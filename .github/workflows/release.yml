@@ -4,10 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag (must match package.json version, e.g. v0.3.0)
+        description: Release tag (must match package.json version, e.g. v0.4.0)
         required: true
-        default: v0.3.0
+        default: v0.4.0
   push:
+    branches:
+      - 'release-candidate/**'
     tags:
       - 'v*'
 
@@ -21,8 +23,11 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
+      publish: ${{ steps.meta.outputs.publish }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -35,6 +40,7 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
           EXPECTED_TAG="v${VERSION}"
+          PUBLISH=false
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
@@ -42,8 +48,21 @@ jobs:
               exit 1
             fi
             TAG="${REQUESTED_TAG}"
-          else
+            PUBLISH=true
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
+            PUBLISH=true
+            git fetch origin main
+            if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+              echo "Release tag ${TAG} does not point to a commit contained in main." >&2
+              exit 1
+            fi
+          else
+            if [[ "${GITHUB_REF_NAME}" != release-candidate/* ]]; then
+              echo "Unexpected release verification branch ${GITHUB_REF_NAME}." >&2
+              exit 1
+            fi
+            TAG="${EXPECTED_TAG}"
           fi
 
           if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
@@ -53,6 +72,7 @@ jobs:
 
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "publish=${PUBLISH}" >> "${GITHUB_OUTPUT}"
 
   build:
     needs: metadata
@@ -102,6 +122,7 @@ jobs:
       contents: write
       actions: read
     steps:
+      - uses: actions/checkout@v7
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -136,6 +157,7 @@ jobs:
           printf 'Release asset: %s\n' "${files[@]}"
 
       - name: Create or update GitHub Release
+        if: needs.metadata.outputs.publish == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -146,6 +168,10 @@ jobs:
           files=(release-assets/*)
 
           if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${RELEASE_TAG}" \
+              --notes-file docs/V0.4_RELEASE_NOTES.md
             gh release upload "${RELEASE_TAG}" "${files[@]}" \
               --repo "${GITHUB_REPOSITORY}" \
               --clobber
@@ -154,5 +180,5 @@ jobs:
               --repo "${GITHUB_REPOSITORY}" \
               --target "${GITHUB_SHA}" \
               --title "${RELEASE_TAG}" \
-              --generate-notes
+              --notes-file docs/V0.4_RELEASE_NOTES.md
           fi
