@@ -14,6 +14,7 @@ const {
   shell,
 } = require('electron');
 const { AppController } = require('./app-controller');
+const { EulerSessionCookieStore } = require('./euler-session-cookie-store');
 const { JupyterManager } = require('./jupyter');
 const { StateStore } = require('./state-store');
 const { INSTALLED_MODE_MARKER, resolveStoragePaths } = require('./storage-paths');
@@ -31,6 +32,8 @@ let controller = null;
 let jupyter = null;
 let workbench = null;
 let stateStore = null;
+let eulerSession = null;
+let eulerSessionCookieStore = null;
 let closing = false;
 let storagePaths = null;
 let storageBootstrapError = null;
@@ -115,7 +118,7 @@ function layoutViews() {
 }
 
 function configureEulerSession() {
-  const eulerSession = session.fromPartition('persist:project-euler-workbench-euler');
+  eulerSession = session.fromPartition('persist:project-euler-workbench-euler');
   eulerSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
   return eulerSession;
 }
@@ -261,6 +264,15 @@ async function createWindow() {
   makeViews();
   layoutViews();
 
+  eulerSessionCookieStore = new EulerSessionCookieStore({
+    session: eulerSession,
+    safeStorage,
+    filePath: path.join(storagePaths.settingsRoot, 'euler-session-cookies.json'),
+  });
+  const restoredCookies = await eulerSessionCookieStore.restore();
+  if (restoredCookies) console.info(`[euler-session] restored ${restoredCookies} session cookie(s)`);
+  eulerSessionCookieStore.startAutoSave();
+
   mainWindow.on('resize', layoutViews);
   mainWindow.on('close', (event) => {
     if (closing) return;
@@ -288,6 +300,14 @@ async function createWindow() {
       }
 
       try {
+        await eulerSessionCookieStore?.shutdown();
+      } catch (error) {
+        // Login persistence is best-effort and must never trap the user in the
+        // application if secure storage or Chromium storage flushing fails.
+        console.warn(`[euler-session] final persistence failed: ${error.message || error}`);
+      }
+
+      try {
         await jupyter?.shutdown();
       } catch (error) {
         console.error('Jupyter shutdown error:', error);
@@ -300,6 +320,8 @@ async function createWindow() {
       rightView = null;
       controller = null;
       workbench = null;
+      eulerSessionCookieStore = null;
+      eulerSession = null;
       mainWindow.destroy();
       app.quit();
     })();
