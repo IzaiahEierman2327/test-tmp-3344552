@@ -4,6 +4,10 @@ A self-contained desktop Project Euler workspace with the Project Euler website 
 
 > This is an unofficial tool and is not affiliated with Project Euler.
 
+## Project roadmap
+
+See [`ROADMAP.md`](ROADMAP.md) for the release history from v0.1.0 through the current v0.4 development line, plus future work that has been explicitly agreed.
+
 ## v0.3.0 distributions
 
 - Windows x64 installer: `euler-workbench-0.3.0-win-x64-setup.exe`
