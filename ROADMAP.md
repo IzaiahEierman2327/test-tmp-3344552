@@ -6,7 +6,7 @@ For detailed implementation requirements, see the version-specific milestone doc
 
 ## Status legend
 
-- **Released** — published as a tagged upstream release.
+- **Released** — published as a tagged release.
 - **Completed on `develop`** — implemented and merged into the current integration branch, but not yet part of a new stable release.
 - **Planned** — explicitly included in an existing development milestone.
 - **Unscheduled** — a known direction or compatibility rule without a committed release version.
@@ -15,7 +15,7 @@ For detailed implementation requirements, see the version-specific milestone doc
 
 This repository continues the original Project Euler Workbench developed in `AuroraLilja8514/test-tmp-3344552`.
 
-The current fork does not contain the historical release tags, so the v0.1–v0.3 entries below are reconstructed from the original upstream tags, release notes, and versioned README files. Current v0.4 work is tracked in this fork on `develop`.
+The current fork does not contain the historical v0.1-v0.3 release tags, so those entries below are reconstructed from the original upstream tags, release notes, and versioned README files. v0.4.0 is the first release published from this fork.
 
 ---
 
@@ -34,7 +34,7 @@ The first release established the architecture that still defines the product:
 - CI, packaged-runtime verification, and GitHub Release publishing were established for verified desktop builds.
 - Initial release artifacts covered Windows, macOS, and Linux formats.
 
-The original design intended the persistent Electron partition to preserve Project Euler login state between launches. A later-discovered limitation with true session cookies meant that this did not work reliably; the missing behavior is addressed on the v0.4 development line.
+The original design intended the persistent Electron partition to preserve Project Euler login state between launches. A later-discovered limitation with true session cookies meant that this did not work reliably; the missing behavior was addressed in v0.4.0.
 
 ---
 
@@ -118,13 +118,13 @@ Detailed v0.3 requirements: [`docs/V0.3_MILESTONES.md`](docs/V0.3_MILESTONES.md)
 
 ---
 
-## v0.4.0 — Hardening, recovery, and continued development
+## v0.4.0 — Hardening, recovery, and build discipline
 
-**Status:** In development on `develop`
+**Status:** Released — 2026-08-12
 
-v0.4 keeps the v0.3 Electron + JupyterLab architecture and concentrates first on security boundaries, failure recovery, and maintainability before further product expansion.
+v0.4 retained the v0.3 Electron + JupyterLab architecture while strengthening security boundaries, failure recovery, login persistence, build repeatability, and release discipline.
 
-### Completed on `develop`
+### Released scope
 
 - Reject pip option-style package specifications and terminate pip option parsing before user requirements.
 - Prevent privileged local BrowserWindows from navigating to remote content while retaining Workbench preload privileges.
@@ -137,19 +137,14 @@ v0.4 keeps the v0.3 Electron + JupyterLab architecture and concentrates first on
 - Ensure explicit Project Euler logout removes the encrypted session snapshot and cannot be undone by a stale asynchronous cookie write.
 - Add a committed npm lockfile for the Electron/build toolchain.
 - Use `npm ci` in CI and release builds so JavaScript build dependencies resolve from that lockfile.
-
-### Planned for v0.4
-
-#### CI and release discipline
-
 - Keep `develop` as the integration branch and `main` as the stable/release branch.
-- Require unit and real Jupyter smoke CI before development PRs enter `develop`.
-- Before v0.4.0 release, run packaged-runtime, portable-layout, and final release-asset verification on the release candidate.
-- Retain the existing Windows x64 installer + portable ZIP and Linux x64 portable `tar.gz` unless a future explicit milestone changes the matrix.
+- Require unit and real Jupyter smoke CI before development changes enter the release line.
+- Validate the release candidate on Windows and Linux with self-contained runtime preparation, Python isolation checks, real Jupyter integration, packaged-runtime verification, portable/release-layout verification, and exact final asset-set verification.
+- Publish exactly the Windows x64 NSIS installer, Windows x64 portable ZIP, and Linux x64 portable `tar.gz`; macOS remains outside the active release matrix.
 
-#### Product development
+### Product boundary preserved in v0.4.0
 
-Further v0.4 product work will build on the existing `WorkbenchService` / `JupyterManager` boundaries. New features must preserve:
+v0.4.0 deliberately focused on hardening and recovery rather than adding another large feature surface. It preserved:
 
 - explicit user control over saved solutions, snippets, and AI source selection;
 - local-first workspace storage;
@@ -157,9 +152,7 @@ Further v0.4 product work will build on the existing `WorkbenchService` / `Jupyt
 - separation between Project Euler content, Jupyter content, and privileged Electron APIs;
 - no automatic answer submission to Project Euler.
 
-No additional v0.4 product feature is treated as committed until it is added to a milestone or accepted development PR. v0.4.0 may proceed to release once the defined hardening/build milestones and release-candidate verification gates are complete.
-
-Detailed v0.4 requirements: [`docs/V0.4_MILESTONES.md`](docs/V0.4_MILESTONES.md).
+Detailed v0.4 requirements: [`docs/V0.4_MILESTONES.md`](docs/V0.4_MILESTONES.md). Release notes: [`docs/V0.4_RELEASE_NOTES.md`](docs/V0.4_RELEASE_NOTES.md).
 
 ---
 
