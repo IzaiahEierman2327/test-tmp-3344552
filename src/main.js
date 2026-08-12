@@ -120,6 +120,38 @@ function configureEulerSession() {
   return eulerSession;
 }
 
+function protectLocalWindow(window) {
+  if (!window || window.isDestroyed()) return;
+  const wc = window.webContents;
+  const openExternal = (url) => {
+    if (/^https?:/i.test(String(url || ''))) shell.openExternal(url).catch(() => {});
+  };
+  const blockNavigation = (event, detailsOrUrl) => {
+    const url = typeof detailsOrUrl === 'string' ? detailsOrUrl : detailsOrUrl?.url;
+    event.preventDefault();
+    openExternal(url);
+  };
+  wc.setWindowOpenHandler(({ url }) => {
+    openExternal(url);
+    return { action: 'deny' };
+  });
+  wc.on('will-navigate', blockNavigation);
+  wc.on('will-redirect', blockNavigation);
+}
+
+function assertToolsSender(event) {
+  if (!toolsWindow || toolsWindow.isDestroyed() || event.sender !== toolsWindow.webContents) {
+    throw new Error('Unauthorized tools IPC sender');
+  }
+}
+
+function registerToolsHandler(channel, handler) {
+  ipcMain.handle(channel, (event, ...args) => {
+    assertToolsSender(event);
+    return handler(...args);
+  });
+}
+
 function makeViews() {
   configureEulerSession();
   leftView = new WebContentsView({
@@ -192,6 +224,7 @@ async function openTools(section = 'dashboard') {
   toolsWindow.setMenuBarVisibility(false);
   toolsWindow.on('closed', () => { toolsWindow = null; });
   await toolsWindow.loadFile(path.join(__dirname, 'ui', 'tools.html'));
+  protectLocalWindow(toolsWindow);
   toolsWindow.webContents.send('tools:section', section);
   toolsWindow.show();
 }
@@ -224,6 +257,7 @@ async function createWindow() {
   });
 
   await mainWindow.loadFile(path.join(__dirname, 'ui', 'index.html'));
+  protectLocalWindow(mainWindow);
   makeViews();
   layoutViews();
 
@@ -327,27 +361,27 @@ function registerIpc() {
   ipcMain.handle('problem:set-status', (_event, status) => workbench?.setStatus(null, status));
   ipcMain.handle('tools:open', (_event, section) => openTools(section));
 
-  ipcMain.handle('tools:context', () => workbench?.currentContext());
-  ipcMain.handle('tools:dashboard', () => workbench?.dashboard());
-  ipcMain.handle('tools:set-status', (_event, problemId, status) => workbench?.setStatus(problemId, status));
-  ipcMain.handle('tools:save-solution', (_event, details) => workbench?.saveCurrentSolution(details || {}));
-  ipcMain.handle('tools:snippets', () => workbench?.listSnippets());
-  ipcMain.handle('tools:save-snippet', (_event, details) => workbench?.saveActiveCellSnippet(details || {}));
-  ipcMain.handle('tools:insert-snippet', (_event, id) => workbench?.insertSnippet(id));
-  ipcMain.handle('tools:remove-snippet', (_event, id) => workbench?.removeSnippet(id));
-  ipcMain.handle('tools:search', (_event, query) => workbench?.search(query));
-  ipcMain.handle('tools:statistics', () => workbench?.statistics());
-  ipcMain.handle('tools:packages', () => workbench?.listPackages());
-  ipcMain.handle('tools:package-install', (_event, spec) => workbench?.installPackage(spec));
-  ipcMain.handle('tools:package-uninstall', (_event, name) => workbench?.uninstallPackage(name));
-  ipcMain.handle('tools:kernel-restart', () => workbench?.restartKernel());
-  ipcMain.handle('tools:ai-config', () => workbench?.getAIConfig());
-  ipcMain.handle('tools:ai-save', (_event, config) => workbench?.saveAIConfig(config || {}));
-  ipcMain.handle('tools:ai-test', (_event, config) => workbench?.testAI(config || {}));
-  ipcMain.handle('tools:article-generate', (_event, options) => workbench?.generateArticle(options || {}));
-  ipcMain.handle('tools:articles', (_event, problemId) => workbench?.listArticles(problemId));
-  ipcMain.handle('tools:article-read', (_event, problemId, articleId) => workbench?.readArticle(problemId, articleId));
-  ipcMain.handle('tools:article-update', (_event, problemId, articleId, update) => workbench?.updateArticle(problemId, articleId, update || {}));
+  registerToolsHandler('tools:context', () => workbench?.currentContext());
+  registerToolsHandler('tools:dashboard', () => workbench?.dashboard());
+  registerToolsHandler('tools:set-status', (problemId, status) => workbench?.setStatus(problemId, status));
+  registerToolsHandler('tools:save-solution', (details) => workbench?.saveCurrentSolution(details || {}));
+  registerToolsHandler('tools:snippets', () => workbench?.listSnippets());
+  registerToolsHandler('tools:save-snippet', (details) => workbench?.saveActiveCellSnippet(details || {}));
+  registerToolsHandler('tools:insert-snippet', (id) => workbench?.insertSnippet(id));
+  registerToolsHandler('tools:remove-snippet', (id) => workbench?.removeSnippet(id));
+  registerToolsHandler('tools:search', (query) => workbench?.search(query));
+  registerToolsHandler('tools:statistics', () => workbench?.statistics());
+  registerToolsHandler('tools:packages', () => workbench?.listPackages());
+  registerToolsHandler('tools:package-install', (spec) => workbench?.installPackage(spec));
+  registerToolsHandler('tools:package-uninstall', (name) => workbench?.uninstallPackage(name));
+  registerToolsHandler('tools:kernel-restart', () => workbench?.restartKernel());
+  registerToolsHandler('tools:ai-config', () => workbench?.getAIConfig());
+  registerToolsHandler('tools:ai-save', (config) => workbench?.saveAIConfig(config || {}));
+  registerToolsHandler('tools:ai-test', (config) => workbench?.testAI(config || {}));
+  registerToolsHandler('tools:article-generate', (options) => workbench?.generateArticle(options || {}));
+  registerToolsHandler('tools:articles', (problemId) => workbench?.listArticles(problemId));
+  registerToolsHandler('tools:article-read', (problemId, articleId) => workbench?.readArticle(problemId, articleId));
+  registerToolsHandler('tools:article-update', (problemId, articleId, update) => workbench?.updateArticle(problemId, articleId, update || {}));
 
   ipcMain.on('layout:set-split', (_event, value) => {
     const ratio = Math.min(0.8, Math.max(0.2, Number(value) || 0.45));
